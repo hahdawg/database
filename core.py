@@ -373,7 +373,15 @@ class QueryRunner(object):
         else:
             assert Exception("Data of type %s not allowed." % type(data))
 
-        max_rows_per_insert = max_rows_per_insert or len(data)/njobs
+        if not max_rows_per_insert:
+            nrow = len(data)
+            # Break jobs into evenly sized chunks.
+            if njobs < nrow:
+                max_rows_per_insert = len(data)/njobs
+            # Handle edge case where there are fewer rows than cores.
+            else:
+                max_rows_per_insert = nrow
+
         self._insert_list(tablename=tablename, colnames=colnames,
                           data=data, njobs=njobs, max_rows_per_insert=max_rows_per_insert)
 
