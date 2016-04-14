@@ -8,6 +8,58 @@ import pandas.io.sql as pdsql
 from tqdm import tqdm
 
 
+def _cellval2str(datum, doublequotes=True):
+    """
+    Formats a list element so that it's compatible with a database insert.
+
+    Returns
+    -------
+    str
+    """
+
+    def isnumeric(x):
+        try:
+            float(x)
+            return True
+        except (ValueError, TypeError):
+            return False
+
+    def isdate(x):
+        try:
+            x.day
+            return True
+        except AttributeError:
+            return False
+
+    def date2str(d):
+        try:
+            with_hms = d.hour + d.minute + d.second > 0
+        except:
+            with_hms = False
+
+        if with_hms:
+            return d.strftime("%m/%d/%Y %H:%M:%S")
+        else:
+            return d.strftime("%m/%d/%Y")
+
+    addquotes = lambda s: "'%s'" % s
+    if datum is None or datum == "NULL":
+        return "NULL"
+    elif isinstance(datum, str) or isinstance(datum, unicode):
+        datum = datum.replace("'", "''") if doublequotes else datum
+        return addquotes(datum)
+    elif isnumeric(datum):
+        return str(datum)
+    elif isdate(datum):
+        return addquotes(date2str(datum))
+    else:
+        return str(datum)
+
+
+def _list2csv(x):
+    return "(%s)" % ",".join(x)
+
+
 def _chunks(xs, n):
     """
     Yield successive n-sized chunks from xs.
@@ -283,5 +335,5 @@ def tutorial_connection():
 
 
 if __name__ == "__main__":
-	cn = tutorial_connection()
-	print cn.sql_select("SELECT * FROM kid LIMIT 5")
+    cn = tutorial_connection()
+    print cn.sql_select("SELECT * FROM kid LIMIT 5")
