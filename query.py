@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-import database.connection as dbcn
 from contextlib import contextmanager
 import functools as ft
 import multiprocessing as mp
@@ -326,13 +325,3 @@ class QueryRunner(object):
         """
         with self.cnhandler.open_cursor() as curs:
             _exec_query(curs=curs, queries=queries)
-
-
-def tutorial_connection():
-    handler = dbcn.PgCnHandler(dbname="tutorial", username="hahdawg")
-    return QueryRunner(cnhandler=handler)
-
-
-if __name__ == "__main__":
-    cn = tutorial_connection()
-    print cn.sql_select("SELECT * FROM kid LIMIT 5")
