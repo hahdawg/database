@@ -146,7 +146,7 @@ def _insert_chunk(cnhandler, tablename, colnames, data):
     return 0
 
 
-def _insert_list(cnhandler, tablename, colnames, data, njobs, max_rows_per_insert):
+def _insert_list(cnhandler, tablename, colnames, data, njobs, chunksize):
     """
     Parameters
     ----------
@@ -155,17 +155,16 @@ def _insert_list(cnhandler, tablename, colnames, data, njobs, max_rows_per_inser
     colnames: [str]
     data: [[]]
     njobs: int
-    max_rows_per_insert: int
+    chunksize: int
 
     Returns
     -------
     None
     """
-    chunksize = max_rows_per_insert*njobs
-    for job_chunk in tqdm(_chunks(data, chunksize), total=len(data)/chunksize):
+    for chunk in tqdm(_chunks(data, chunksize), total=len(data)/chunksize):
         pool = mp.Pool(processes=njobs)
-        res = [pool.apply_async(_insert_chunk, args=(cnhandler, tablename, colnames, insert_chunk))
-               for insert_chunk in _chunks(job_chunk, max_rows_per_insert)]
+        res = [pool.apply_async(_insert_chunk, args=(cnhandler, tablename, colnames, sub_chunk))
+               for sub_chunk in _chunks(chunk, len(chunk)/njobs)]
         res = [p.get() for p in res]
         pool.close()
         pool.join()
@@ -223,7 +222,7 @@ class QueryRunner(object):
         else:
             return self._sql_select_unchunked(ssql)
 
-    def _insert_list(self, tablename, colnames, data, njobs, max_rows_per_insert):
+    def _insert_list(self, tablename, colnames, data, njobs, chunksize):
         """
         Parameters
         ----------
@@ -234,9 +233,9 @@ class QueryRunner(object):
         """
         _insert_list(cnhandler=self.cnhandler, tablename=tablename,
                      colnames=colnames, data=data, njobs=njobs, 
-                     max_rows_per_insert=max_rows_per_insert)
+                     chunksize=chunksize)
 
-    def sql_insert(self, tablename, data, colnames=None, njobs=None, max_rows_per_insert=None):
+    def sql_insert(self, tablename, data, colnames=None, njobs=None, chunksize=None):
         """
         Insert a nested list or a DataFrame into a table.
         If data is a list, user must also provide a list of column names.
@@ -246,7 +245,7 @@ class QueryRunner(object):
         For either type of data, rows represent rows of a table.
 
         By default, this function will break data into evenly sized chunks and insert the chunks
-        in parallel.  If the function ends up using too much memory, lower max_rows_per_insert
+        in parallel.  If the function ends up using too much memory, lower chunksize
         to a more reasonable size.
 
         Parameters
@@ -256,7 +255,7 @@ class QueryRunner(object):
         colnames: [str]
         njobs: int
             Number of cores to use.
-        max_rows_per_insert: int
+        chunksize: int
             Maximum number of rows inserted per core.
         """
         njobs = njobs or mp.cpu_count()
@@ -269,17 +268,17 @@ class QueryRunner(object):
         else:
             assert Exception("Data of type %s not allowed." % type(data))
 
-        if not max_rows_per_insert:
+        if not chunksize:
             nrow = len(data)
             # Break jobs into evenly sized chunks.
             if njobs < nrow:
-                max_rows_per_insert = len(data)/njobs
+                chunksize = len(data)/njobs
             # Handle edge case where there are fewer rows than cores.
             else:
-                max_rows_per_insert = nrow
+                chunksize = nrow
 
         self._insert_list(tablename=tablename, colnames=colnames,
-                          data=data, njobs=njobs, max_rows_per_insert=max_rows_per_insert)
+                          data=data, njobs=njobs, chunksize=chunksize)
 
     @staticmethod
     def _delete_where(tablename, cols):
