@@ -41,4 +41,3 @@ class QueryTester(unittest.TestCase):
     def tearDown(self):
         sql = "DROP TABLE IF EXISTS %s" % tablename
         self.query_runner.exec_query(sql)
-        
