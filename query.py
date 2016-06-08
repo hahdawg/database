@@ -1,6 +1,4 @@
 from __future__ import absolute_import
-from contextlib import contextmanager
-import functools as ft
 import multiprocessing as mp
 import pandas as pd
 import pandas.io.sql as pdsql
@@ -41,7 +39,9 @@ def _cellval2str(datum, doublequotes=True):
         else:
             return d.strftime("%m/%d/%Y")
 
-    addquotes = lambda s: "'%s'" % s
+    def addquotes(s):
+        return "'%s'" % s
+
     if datum is None or datum == "NULL":
         return "NULL"
     elif isinstance(datum, str) or isinstance(datum, unicode):
@@ -231,14 +231,14 @@ class QueryRunner(object):
         closecn: bool
         """
         _insert_list(cnhandler=self.cnhandler, tablename=tablename,
-                     colnames=colnames, data=data, njobs=njobs, 
+                     colnames=colnames, data=data, njobs=njobs,
                      chunksize=chunksize)
 
     def sql_insert(self, tablename, data, colnames=None, njobs=None, chunksize=None):
         """
         Insert a nested list or a DataFrame into a table.
         If data is a list, user must also provide a list of column names.
-        If data is a DataFrame, the DataFrame's columns must be the same as the 
+        If data is a DataFrame, the DataFrame's columns must be the same as the
         columns in the table.
 
         For either type of data, rows represent rows of a table.

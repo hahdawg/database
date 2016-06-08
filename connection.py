@@ -96,4 +96,3 @@ class SqlCnHandler(BaseCnHandler):
             return self._windows_cn_str
         else:
             return self._linux_cn_str
-
